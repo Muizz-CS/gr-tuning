@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { supabase } from '../lib/supabaseClient'; // Make sure this path targets your config file
 
 export default function LeadModal({ isOpen, onClose, isEcoMode }) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     contactNumber: '',
@@ -15,11 +17,50 @@ export default function LeadModal({ isOpen, onClose, isEcoMode }) {
 
   const activeColor = 'var(--brand-glow)';
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Lead captured for calibration profiling:', formData);
-    alert('Request received. GR Tuning will review your details and get back to you.');
-    onClose();
+    setIsSubmitting(true);
+
+    // Build the payload mapping accurately to your PostgreSQL schema column names
+    const cleanPayload = {
+      name: formData.name,
+      contact_number: formData.contactNumber,
+      email: formData.email,
+      is_eco_mode: isEcoMode,
+      
+      // Zero out alternative inputs based on active mode context prior to writing
+      company_name: isEcoMode ? formData.companyName : null,
+      fleet_size: isEcoMode ? parseInt(formData.fleetSize, 10) || null : null,
+      vehicle_model: !isEcoMode ? formData.vehicleModel : null,
+      hardware_specs: !isEcoMode ? formData.hardwareSpecs : null,
+    };
+
+    try {
+      const { error } = await supabase
+        .from('tuning_leads')
+        .insert([cleanPayload]);
+
+      if (error) throw error;
+
+      alert('Tuning request successfully logged. Our lead calibrator will review your details shortly.');
+      
+      // Clean up local modal state upon successful network write operations
+      setFormData({
+        name: '',
+        contactNumber: '',
+        email: '',
+        companyName: '',
+        fleetSize: '',
+        vehicleModel: '',
+        hardwareSpecs: ''
+      });
+      onClose();
+    } catch (err) {
+      console.error('Backend submission failure:', err.message);
+      alert('Transmission failed. Please check your network connection and retry.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -29,6 +70,7 @@ export default function LeadModal({ isOpen, onClose, isEcoMode }) {
           onClick={onClose}
           className="modal-close"
           aria-label="Close booking form"
+          disabled={isSubmitting}
         >
           x
         </button>
@@ -45,17 +87,38 @@ export default function LeadModal({ isOpen, onClose, isEcoMode }) {
         <form onSubmit={handleSubmit} className="lead-form">
           <div>
             <label>Your Name</label>
-            <input type="text" required className="form-input" onChange={e => setFormData({ ...formData, name: e.target.value })} />
+            <input 
+              type="text" 
+              required 
+              className="form-input" 
+              value={formData.name}
+              onChange={e => setFormData({ ...formData, name: e.target.value })} 
+              disabled={isSubmitting}
+            />
           </div>
 
           <div className="form-grid-two">
             <div>
               <label>Contact Number</label>
-              <input type="tel" required className="form-input" onChange={e => setFormData({ ...formData, contactNumber: e.target.value })} />
+              <input 
+                type="tel" 
+                required 
+                className="form-input" 
+                value={formData.contactNumber}
+                onChange={e => setFormData({ ...formData, contactNumber: e.target.value })} 
+                disabled={isSubmitting}
+              />
             </div>
             <div>
               <label>Email Address</label>
-              <input type="email" required className="form-input" onChange={e => setFormData({ ...formData, email: e.target.value })} />
+              <input 
+                type="email" 
+                required 
+                className="form-input" 
+                value={formData.email}
+                onChange={e => setFormData({ ...formData, email: e.target.value })} 
+                disabled={isSubmitting}
+              />
             </div>
           </div>
 
@@ -63,11 +126,26 @@ export default function LeadModal({ isOpen, onClose, isEcoMode }) {
             <div className="form-grid-two form-grid-fleet">
               <div>
                 <label>Company Name</label>
-                <input type="text" required className="form-input" onChange={e => setFormData({ ...formData, companyName: e.target.value })} />
+                <input 
+                  type="text" 
+                  required 
+                  className="form-input" 
+                  value={formData.companyName}
+                  onChange={e => setFormData({ ...formData, companyName: e.target.value })} 
+                  disabled={isSubmitting}
+                />
               </div>
               <div>
                 <label>Fleet Size</label>
-                <input type="number" placeholder="e.g. 5" required className="form-input" onChange={e => setFormData({ ...formData, fleetSize: e.target.value })} />
+                <input 
+                  type="number" 
+                  placeholder="e.g. 5" 
+                  required 
+                  className="form-input" 
+                  value={formData.fleetSize}
+                  onChange={e => setFormData({ ...formData, fleetSize: e.target.value })} 
+                  disabled={isSubmitting}
+                />
               </div>
             </div>
           )}
@@ -76,17 +154,33 @@ export default function LeadModal({ isOpen, onClose, isEcoMode }) {
             <>
               <div>
                 <label>Vehicle Model & Year</label>
-                <input type="text" placeholder="e.g. 2012 Golf 6 GTI 2.0" className="form-input" required onChange={e => setFormData({ ...formData, vehicleModel: e.target.value })} />
+                <input 
+                  type="text" 
+                  placeholder="e.g. 2012 Golf 6 GTI 2.0" 
+                  className="form-input" 
+                  required 
+                  value={formData.vehicleModel}
+                  onChange={e => setFormData({ ...formData, vehicleModel: e.target.value })} 
+                  disabled={isSubmitting}
+                />
               </div>
               <div>
                 <label>Current Hardware</label>
-                <input type="text" placeholder="e.g. downpipe, intake, stock turbo" className="form-input" required onChange={e => setFormData({ ...formData, hardwareSpecs: e.target.value })} />
+                <input 
+                  type="text" 
+                  placeholder="e.g. downpipe, intake, stock turbo" 
+                  className="form-input" 
+                  required 
+                  value={formData.hardwareSpecs}
+                  onChange={e => setFormData({ ...formData, hardwareSpecs: e.target.value })} 
+                  disabled={isSubmitting}
+                />
               </div>
             </>
           )}
 
-          <button type="submit" className="primary-cta modal-submit">
-            {isEcoMode ? 'Submit Fleet Details' : 'Submit Vehicle Details'}
+          <button type="submit" className="primary-cta modal-submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Submitting...' : (isEcoMode ? 'Submit Fleet Details' : 'Submit Vehicle Details')}
           </button>
         </form>
       </div>
