@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { supabase } from '../lib/supabaseClient'; // Make sure this path targets your config file
+import { supabase } from '../lib/supabaseClient';
 
 export default function LeadModal({ isOpen, onClose, isEcoMode }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [status, setStatus] = useState({ type: '', text: '' });
   const [formData, setFormData] = useState({
     name: '',
     contactNumber: '',
@@ -20,15 +21,13 @@ export default function LeadModal({ isOpen, onClose, isEcoMode }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setStatus({ type: '', text: '' });
 
-    // Build the payload mapping accurately to your PostgreSQL schema column names
     const cleanPayload = {
       name: formData.name,
       contact_number: formData.contactNumber,
       email: formData.email,
       is_eco_mode: isEcoMode,
-      
-      // Zero out alternative inputs based on active mode context prior to writing
       company_name: isEcoMode ? formData.companyName : null,
       fleet_size: isEcoMode ? parseInt(formData.fleetSize, 10) || null : null,
       vehicle_model: !isEcoMode ? formData.vehicleModel : null,
@@ -42,22 +41,21 @@ export default function LeadModal({ isOpen, onClose, isEcoMode }) {
 
       if (error) throw error;
 
-      alert('Tuning request successfully logged. Our lead calibrator will review your details shortly.');
-      
-      // Clean up local modal state upon successful network write operations
-      setFormData({
-        name: '',
-        contactNumber: '',
-        email: '',
-        companyName: '',
-        fleetSize: '',
-        vehicleModel: '',
-        hardwareSpecs: ''
+      setStatus({
+        type: 'success',
+        text: 'Tuning request successfully logged! Our lead calibrator will review your details shortly.'
       });
-      onClose();
+
+      setTimeout(() => {
+        onClose();
+      }, 2500);
+
     } catch (err) {
       console.error('Backend submission failure:', err.message);
-      alert('Transmission failed. Please check your network connection and retry.');
+      setStatus({
+        type: 'error',
+        text: 'Transmission failed. Please check your network connection and try again.'
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -66,12 +64,7 @@ export default function LeadModal({ isOpen, onClose, isEcoMode }) {
   return (
     <div className="modal-backdrop">
       <div className="lead-modal" style={{ borderColor: activeColor, boxShadow: `0 0 30px ${activeColor}22` }}>
-        <button
-          onClick={onClose}
-          className="modal-close"
-          aria-label="Close booking form"
-          disabled={isSubmitting}
-        >
+        <button onClick={onClose} className="modal-close" aria-label="Close booking form" disabled={isSubmitting}>
           x
         </button>
 
@@ -85,6 +78,26 @@ export default function LeadModal({ isOpen, onClose, isEcoMode }) {
         </div>
 
         <form onSubmit={handleSubmit} className="lead-form">
+          {status.text && (
+            <div 
+              className={`status-message ${status.type}`}
+              style={{
+                padding: '0.85rem 1rem',
+                borderRadius: '6px',
+                marginBottom: '1.25rem',
+                fontSize: '0.9rem',
+                fontWeight: '500',
+                lineHeight: '1.4',
+                border: '1px solid',
+                backgroundColor: status.type === 'success' ? '#065f4633' : '#991b1b33',
+                borderColor: status.type === 'success' ? '#10b981' : '#ef4444',
+                color: status.type === 'success' ? '#34d399' : '#f87171'
+              }}
+            >
+              {status.text}
+            </div>
+          )}
+
           <div>
             <label>Your Name</label>
             <input 
@@ -93,7 +106,7 @@ export default function LeadModal({ isOpen, onClose, isEcoMode }) {
               className="form-input" 
               value={formData.name}
               onChange={e => setFormData({ ...formData, name: e.target.value })} 
-              disabled={isSubmitting}
+              disabled={isSubmitting || status.type === 'success'}
             />
           </div>
 
@@ -106,7 +119,7 @@ export default function LeadModal({ isOpen, onClose, isEcoMode }) {
                 className="form-input" 
                 value={formData.contactNumber}
                 onChange={e => setFormData({ ...formData, contactNumber: e.target.value })} 
-                disabled={isSubmitting}
+                disabled={isSubmitting || status.type === 'success'}
               />
             </div>
             <div>
@@ -117,7 +130,7 @@ export default function LeadModal({ isOpen, onClose, isEcoMode }) {
                 className="form-input" 
                 value={formData.email}
                 onChange={e => setFormData({ ...formData, email: e.target.value })} 
-                disabled={isSubmitting}
+                disabled={isSubmitting || status.type === 'success'}
               />
             </div>
           </div>
@@ -132,7 +145,7 @@ export default function LeadModal({ isOpen, onClose, isEcoMode }) {
                   className="form-input" 
                   value={formData.companyName}
                   onChange={e => setFormData({ ...formData, companyName: e.target.value })} 
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || status.type === 'success'}
                 />
               </div>
               <div>
@@ -144,7 +157,7 @@ export default function LeadModal({ isOpen, onClose, isEcoMode }) {
                   className="form-input" 
                   value={formData.fleetSize}
                   onChange={e => setFormData({ ...formData, fleetSize: e.target.value })} 
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || status.type === 'success'}
                 />
               </div>
             </div>
@@ -161,7 +174,7 @@ export default function LeadModal({ isOpen, onClose, isEcoMode }) {
                   required 
                   value={formData.vehicleModel}
                   onChange={e => setFormData({ ...formData, vehicleModel: e.target.value })} 
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || status.type === 'success'}
                 />
               </div>
               <div>
@@ -173,14 +186,22 @@ export default function LeadModal({ isOpen, onClose, isEcoMode }) {
                   required 
                   value={formData.hardwareSpecs}
                   onChange={e => setFormData({ ...formData, hardwareSpecs: e.target.value })} 
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || status.type === 'success'}
                 />
               </div>
             </>
           )}
 
-          <button type="submit" className="primary-cta modal-submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Submitting...' : (isEcoMode ? 'Submit Fleet Details' : 'Submit Vehicle Details')}
+          <button 
+            type="submit" 
+            className="primary-cta modal-submit" 
+            disabled={isSubmitting || status.type === 'success'}
+            style={{
+              opacity: (isSubmitting || status.type === 'success') ? 0.6 : 1,
+              cursor: (isSubmitting || status.type === 'success') ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {isSubmitting ? 'Submitting...' : (status.type === 'success' ? 'Saved ✓' : (isEcoMode ? 'Submit Fleet Details' : 'Submit Vehicle Details'))}
           </button>
         </form>
       </div>

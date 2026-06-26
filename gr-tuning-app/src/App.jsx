@@ -191,7 +191,13 @@ export default function App() {
         </button>
       </section>
 
-      <LeadModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} isEcoMode={isEcoMode} />
+      {/* Optimized LeadModal Mounting Layer */}
+      <LeadModal 
+        key={isModalOpen ? 'modal-open' : 'modal-closed'} 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        isEcoMode={isEcoMode} 
+      />
     </div>
   );
 }
